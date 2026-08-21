@@ -7,6 +7,8 @@ import { attachErrorLogging, createBoss, startBoss, stopBoss } from "@aca/queue"
 import { createLogger } from "@aca/logger";
 import { ConfigModule, APP_CONFIG } from "../config/config.module";
 import type { ApiEnv } from "../config/env";
+import { ConsoleEmailSender } from "./email/console-email-sender";
+import { EMAIL_SENDER } from "./email/email-sender";
 
 export const PG_POOL = Symbol("PG_POOL");
 export const REDIS_CLIENT = Symbol("REDIS_CLIENT");
@@ -43,8 +45,14 @@ export const APP_LOGGER = Symbol("APP_LOGGER");
         return boss;
       },
     },
+    // adr/0006-email-password-auth.md: no provider configured yet, logs instead of sending.
+    {
+      provide: EMAIL_SENDER,
+      inject: [APP_LOGGER],
+      useFactory: (logger: ReturnType<typeof createLogger>) => new ConsoleEmailSender(logger),
+    },
   ],
-  exports: [PG_POOL, REDIS_CLIENT, PG_BOSS, APP_LOGGER],
+  exports: [PG_POOL, REDIS_CLIENT, PG_BOSS, APP_LOGGER, EMAIL_SENDER],
 })
 export class InfraModule implements OnModuleInit, OnModuleDestroy {
   constructor(

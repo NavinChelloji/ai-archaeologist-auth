@@ -1,14 +1,39 @@
 import "reflect-metadata";
+import { config } from "dotenv";
+import { randomUUID } from "node:crypto";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import fastifyCors from "@fastify/cors";
 import { AppModule } from "./app.module";
 import { loadApiEnv } from "./config/env";
+
+config();
+
+const CORRELATION_ID_HEADER = "x-correlation-id";
 
 async function bootstrap(): Promise<void> {
   const env = loadApiEnv();
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
     bufferLogs: true,
+  });
+
+  // Registered on the raw Fastify instance, not via Nest's `app.register()`
+  // wrapper — its plugin typings don't line up with Nest's FastifyInstance
+  // generic instantiation, a known friction point with Nest+Fastify plugins.
+  const fastify = app.getHttpAdapter().getInstance();
+
+  fastify.addHook("onRequest", async (request, reply) => {
+    const header = request.headers[CORRELATION_ID_HEADER];
+    request.correlationId = typeof header === "string" && header.length > 0 ? header : randomUUID();
+    reply.header(CORRELATION_ID_HEADER, request.correlationId);
+  });
+
+  await fastify.register(fastifyCors, {
+    origin: env.PUBLIC_APP_URL,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   app.enableShutdownHooks();
