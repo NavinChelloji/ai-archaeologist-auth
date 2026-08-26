@@ -55,6 +55,10 @@ const ApiEnvSchema = z.object({
   RATE_LIMIT_IMPORT_PER_HOUR: z.coerce.number().int().positive().default(5),
   OWNERSHIP_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   SSE_HEARTBEAT_SECONDS: z.coerce.number().int().positive().default(15),
+
+  // Chat (Stage 9, CHAT_SERVICE_PLAN.md) — `api` proxies conversation CRUD
+  // and streams the SSE token response straight through from `ai`.
+  AI_SERVICE_URL: urlSchema,
 });
 
 export type ApiEnv = z.infer<typeof ApiEnvSchema>;

@@ -8,9 +8,21 @@ import { InternalModule } from "./internal/internal.module";
 import { SystemModule } from "./modules/system/system.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { RepositoriesModule } from "./modules/repositories/repositories.module";
+import { GraphModule } from "./modules/graph/graph.module";
+import { ChatModule } from "./modules/chat/chat.module";
 
 @Module({
-  imports: [ConfigModule, InfraModule, HealthModule, InternalModule, SystemModule, AuthModule, RepositoriesModule],
+  imports: [
+    ConfigModule,
+    InfraModule,
+    HealthModule,
+    InternalModule,
+    SystemModule,
+    AuthModule,
+    RepositoriesModule,
+    GraphModule,
+    ChatModule,
+  ],
   providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
 })
 export class AppModule {}
