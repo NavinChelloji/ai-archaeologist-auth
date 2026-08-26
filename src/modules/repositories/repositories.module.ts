@@ -25,5 +25,6 @@ import { SseAuthGuard } from "./sse-auth.guard";
     JobEventsStreamService,
     SseAuthGuard,
   ],
+  exports: [IndexerHttpClient, OwnershipResolver],
 })
 export class RepositoriesModule {}

@@ -3,12 +3,19 @@ import {
   AppError,
   ERROR_CODES,
   type ErrorCode,
+  type GraphDependenciesQuery,
+  type GraphFoldersQuery,
+  type GraphNeighborsQuery,
+  type GraphResponse,
+  type GraphSymbolsQuery,
   type InternalImportRepositoryRequest,
   type InternalImportRepositoryResponse,
   type InternalRepositoryOwnershipResponse,
   type ProcessingJobDto,
   type RepositoriesListResponse,
   type RepositoryDto,
+  type TreeQuery,
+  type TreeResponse,
 } from "@aca/contracts";
 import { APP_CONFIG } from "../../config/config.module";
 import type { ApiEnv } from "../../config/env";
@@ -19,6 +26,17 @@ const KNOWN_CODES = new Set<string>(ERROR_CODES);
 
 function isErrorCode(value: unknown): value is ErrorCode {
   return typeof value === "string" && KNOWN_CODES.has(value);
+}
+
+/** Re-serializes an already Zod-parsed query object (numbers, booleans) back to a query string for the forwarded request — `indexer` re-validates it against the same schema. */
+function toQueryString(query: Record<string, unknown>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined) continue;
+    params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
 }
 
 /**
@@ -58,6 +76,51 @@ export class IndexerHttpClient {
     return this.request(
       "GET",
       `/internal/repositories/${repoId}/ownership?${params}`,
+      { sub: userId, repoId, scope: ["repo:read"] }
+    );
+  }
+
+  getTree(userId: string, repoId: string, query: TreeQuery): Promise<TreeResponse> {
+    return this.request(
+      "GET",
+      `/internal/repositories/${repoId}/tree${toQueryString(query)}`,
+      { sub: userId, repoId, scope: ["repo:read"] }
+    );
+  }
+
+  getGraphFolders(userId: string, repoId: string, query: GraphFoldersQuery): Promise<GraphResponse> {
+    return this.request(
+      "GET",
+      `/internal/repositories/${repoId}/graph/folders${toQueryString(query)}`,
+      { sub: userId, repoId, scope: ["repo:read"] }
+    );
+  }
+
+  getGraphDependencies(userId: string, repoId: string, query: GraphDependenciesQuery): Promise<GraphResponse> {
+    return this.request(
+      "GET",
+      `/internal/repositories/${repoId}/graph/dependencies${toQueryString(query)}`,
+      { sub: userId, repoId, scope: ["repo:read"] }
+    );
+  }
+
+  getGraphSymbols(userId: string, repoId: string, query: GraphSymbolsQuery): Promise<GraphResponse> {
+    return this.request(
+      "GET",
+      `/internal/repositories/${repoId}/graph/symbols${toQueryString(query)}`,
+      { sub: userId, repoId, scope: ["repo:read"] }
+    );
+  }
+
+  getGraphNeighbors(
+    userId: string,
+    repoId: string,
+    nodeId: string,
+    query: GraphNeighborsQuery
+  ): Promise<GraphResponse> {
+    return this.request(
+      "GET",
+      `/internal/repositories/${repoId}/graph/nodes/${nodeId}/neighbors${toQueryString(query)}`,
       { sub: userId, repoId, scope: ["repo:read"] }
     );
   }
