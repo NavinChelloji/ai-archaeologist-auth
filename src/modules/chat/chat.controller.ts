@@ -15,6 +15,7 @@ import {
 } from "@aca/contracts";
 import { AccessTokenGuard, type RequestWithUser } from "../auth/access-token.guard";
 import { ZodValidationPipe } from "../../shared/validation/zod-validation.pipe";
+import { ChatRateLimitGuard } from "./chat-rate-limit.guard";
 import { ChatService } from "./chat.service";
 
 /**
@@ -56,6 +57,7 @@ export class ChatController {
 
   /** SSE — this handler owns the response directly (AiHttpClient writes to `reply.raw`), so Nest must not also try to send a return value. */
   @Post("conversations/:conversationId/messages")
+  @UseGuards(ChatRateLimitGuard)
   async sendMessage(
     @Req() request: RequestWithUser,
     @Res() reply: FastifyReply,

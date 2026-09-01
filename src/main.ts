@@ -4,8 +4,10 @@ import { randomUUID } from "node:crypto";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import fastifyCors from "@fastify/cors";
+import type { HttpMetrics } from "@aca/metrics";
 import { AppModule } from "./app.module";
 import { loadApiEnv } from "./config/env";
+import { HTTP_METRICS } from "./shared/metrics/metrics.module";
 
 config();
 
@@ -34,6 +36,14 @@ async function bootstrap(): Promise<void> {
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+  });
+
+  const httpMetrics = app.get<HttpMetrics>(HTTP_METRICS);
+  fastify.addHook("onResponse", async (request, reply) => {
+    const route = request.routeOptions?.url ?? request.url;
+    const labels = { method: request.method, route, status_code: String(reply.statusCode) };
+    httpMetrics.requestsTotal.inc(labels);
+    httpMetrics.requestDuration.observe(labels, reply.elapsedTime / 1000);
   });
 
   app.enableShutdownHooks();

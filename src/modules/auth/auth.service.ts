@@ -126,6 +126,20 @@ export class AuthService {
     }
   }
 
+  /**
+   * `api`'s own half of account deletion (DATA_RETENTION_AND_PRIVACY.md
+   * "Account deletion"). The caller (`AccountService`) publishes
+   * `repo.deleted`/`user.deleted` first — this runs last, once those are
+   * safely queued, so a user who retries after a mid-flight failure still
+   * has an account to retry from. `users.delete` cascades
+   * `refresh_sessions` (already revoked above) via `ON DELETE CASCADE`,
+   * removing the encrypted GitHub tokens stored on the same row.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    await this.refreshSessions.revokeAllForUser(userId);
+    await this.users.delete(userId);
+  }
+
   async getUser(userId: string): Promise<UserDto> {
     const row = await this.users.findById(userId);
     if (!row) {
