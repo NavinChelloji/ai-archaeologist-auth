@@ -15,6 +15,7 @@ import {
 } from "@aca/contracts";
 import { AccessTokenGuard, type RequestWithUser } from "../auth/access-token.guard";
 import { ZodValidationPipe } from "../../shared/validation/zod-validation.pipe";
+import { GraphRateLimitGuard } from "./graph-rate-limit.guard";
 import { GraphService } from "./graph.service";
 
 /**
@@ -24,7 +25,7 @@ import { GraphService } from "./graph.service";
  * browser never reaches `indexer` directly.
  */
 @Controller("api/v1/repositories")
-@UseGuards(AccessTokenGuard)
+@UseGuards(AccessTokenGuard, GraphRateLimitGuard)
 export class GraphController {
   constructor(private readonly graph: GraphService) {}
 

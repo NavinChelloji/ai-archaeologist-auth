@@ -37,4 +37,9 @@ export class OwnershipResolver {
       throw new AppError("REPO_FORBIDDEN", "You do not have access to this repository.");
     }
   }
+
+  /** Called on deletion so a cached "owns" from just before the delete can't outlive the repository for the rest of the 60s window. */
+  async invalidate(userId: string, repoId: string): Promise<void> {
+    await this.redis.del(`ownership:${userId}:${repoId}`);
+  }
 }

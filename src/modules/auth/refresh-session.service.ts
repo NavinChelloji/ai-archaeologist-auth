@@ -97,4 +97,9 @@ export class RefreshSessionService {
       await this.sessions.revoke(session.id);
     }
   }
+
+  /** Account deletion (DATA_RETENTION_AND_PRIVACY.md "all refresh sessions are revoked and deleted") — the row itself is removed moments later when `users.delete` cascades, this just ends every session immediately. */
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.sessions.revokeAllForUser(userId);
+  }
 }

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards, UsePipes } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards, UsePipes } from "@nestjs/common";
 import type { FastifyReply } from "fastify";
 import {
   GithubRepositoriesQuerySchema,
   ImportRepositoryRequestSchema,
   RepositoriesListQuerySchema,
+  type DeleteRepositoryResponse,
   type GithubRepositoriesQuery,
   type GithubRepositoriesResponse,
   type ImportRepositoryRequest,
@@ -77,6 +78,13 @@ export class RepositoriesController {
   @UseGuards(AccessTokenGuard)
   async getLatestJob(@Req() request: RequestWithUser, @Param("repoId") repoId: string): Promise<ProcessingJobDto> {
     return this.repositories.getLatestJob(request.userId as string, repoId);
+  }
+
+  @Delete("repositories/:repoId")
+  @UseGuards(AccessTokenGuard)
+  @HttpCode(202)
+  async deleteRepository(@Req() request: RequestWithUser, @Param("repoId") repoId: string): Promise<DeleteRepositoryResponse> {
+    return this.repositories.deleteRepository(request.userId as string, repoId, request.correlationId);
   }
 
   /** SSE — this handler owns the response directly (JobEventsStreamService writes to `reply.raw`), so Nest must not also try to send a return value. */

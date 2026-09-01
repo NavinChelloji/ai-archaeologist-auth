@@ -5,6 +5,7 @@ import { RateLimitService } from "../../shared/rate-limit/rate-limit.service";
 import { AuthModule } from "../auth/auth.module";
 import { GithubApiClient } from "./github-api.client";
 import { ImportRateLimitGuard } from "./import-rate-limit.guard";
+import { ImportUsageRepository } from "./import-usage.repository";
 import { IndexerHttpClient } from "./indexer-http.client";
 import { JobEventsStreamService } from "./job-events-stream.service";
 import { OwnershipResolver } from "./ownership-resolver.service";
@@ -20,6 +21,7 @@ import { SseAuthGuard } from "./sse-auth.guard";
     GithubApiClient,
     IndexerHttpClient,
     OwnershipResolver,
+    ImportUsageRepository,
     ImportRateLimitGuard,
     RateLimitService,
     JobEventsStreamService,

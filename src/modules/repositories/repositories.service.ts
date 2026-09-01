@@ -1,6 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type PgBoss from "pg-boss";
+import { AppError } from "@aca/contracts";
 import type {
+  DeleteRepositoryResponse,
   GithubRepositoriesQuery,
   GithubRepositoriesResponse,
   ImportRepositoryRequest,
@@ -11,9 +13,12 @@ import type {
   RepositoryDto,
 } from "@aca/contracts";
 import { publishJob } from "@aca/queue";
+import { APP_CONFIG } from "../../config/config.module";
+import type { ApiEnv } from "../../config/env";
 import { PG_BOSS } from "../../shared/infra.module";
 import { AuthService } from "../auth/auth.service";
 import { GithubApiClient } from "./github-api.client";
+import { ImportUsageRepository } from "./import-usage.repository";
 import { IndexerHttpClient } from "./indexer-http.client";
 import { OwnershipResolver } from "./ownership-resolver.service";
 
@@ -26,10 +31,12 @@ import { OwnershipResolver } from "./ownership-resolver.service";
 export class RepositoriesService {
   constructor(
     @Inject(PG_BOSS) private readonly boss: PgBoss,
+    @Inject(APP_CONFIG) private readonly config: ApiEnv,
     private readonly auth: AuthService,
     private readonly github: GithubApiClient,
     private readonly indexer: IndexerHttpClient,
-    private readonly ownership: OwnershipResolver
+    private readonly ownership: OwnershipResolver,
+    private readonly importUsage: ImportUsageRepository
   ) {}
 
   async listGithubRepositories(userId: string, query: GithubRepositoriesQuery): Promise<GithubRepositoriesResponse> {
@@ -56,11 +63,19 @@ export class RepositoriesService {
     body: ImportRepositoryRequest,
     correlationId: string
   ): Promise<ImportRepositoryResponse> {
+    const importsThisMonth = await this.importUsage.countForUserThisMonth(userId);
+    if (importsThisMonth >= this.config.QUOTA_IMPORTS_PER_MONTH) {
+      throw new AppError("QUOTA_IMPORTS", "Monthly import budget exhausted.", {
+        details: { limit: this.config.QUOTA_IMPORTS_PER_MONTH },
+      });
+    }
+
     const result = await this.indexer.importRepository(userId, {
       ownerUserId: userId,
       provider: "github",
       providerRepoId: body.providerRepoId,
     });
+    await this.importUsage.record(userId, result.repoId);
 
     await publishJob(this.boss, {
       eventType: "repo.import.requested",
@@ -94,5 +109,27 @@ export class RepositoriesService {
   async getLatestJob(userId: string, repoId: string): Promise<ProcessingJobDto> {
     await this.ownership.assertOwnership(userId, repoId);
     return this.indexer.getLatestJob(userId, repoId);
+  }
+
+  /**
+   * `DELETE /api/v1/repositories/:repoId` (DATA_RETENTION_AND_PRIVACY.md
+   * "Repository deletion"). Soft-deletes synchronously so the repository
+   * disappears from the user's list immediately, then publishes
+   * `repo.deleted` for the asynchronous cascade in `indexer` and `ai`.
+   */
+  async deleteRepository(userId: string, repoId: string, correlationId: string): Promise<DeleteRepositoryResponse> {
+    await this.ownership.assertOwnership(userId, repoId);
+    await this.indexer.deleteRepository(userId, repoId);
+    await this.ownership.invalidate(userId, repoId);
+
+    await publishJob(this.boss, {
+      eventType: "repo.deleted",
+      payload: { repoId, reason: "user_request" },
+      correlationId,
+      userId,
+      repoId,
+    });
+
+    return { repoId, status: "deleting" };
   }
 }

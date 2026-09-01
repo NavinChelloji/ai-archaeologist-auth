@@ -80,6 +80,11 @@ export class IndexerHttpClient {
     );
   }
 
+  /** Fast, synchronous soft-delete (DATA_RETENTION_AND_PRIVACY.md "Repository deletion" step 1) — the caller publishes `repo.deleted` for the rest of the cascade right after this returns. */
+  deleteRepository(userId: string, repoId: string): Promise<{ status: "deleting" }> {
+    return this.request("DELETE", `/internal/repositories/${repoId}`, { sub: userId, repoId, scope: ["repo:write"] });
+  }
+
   getTree(userId: string, repoId: string, query: TreeQuery): Promise<TreeResponse> {
     return this.request(
       "GET",
@@ -126,7 +131,7 @@ export class IndexerHttpClient {
   }
 
   private async request<T>(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "DELETE",
     path: string,
     tokenInput: { sub: string; repoId?: string; scope: string[] },
     body?: unknown

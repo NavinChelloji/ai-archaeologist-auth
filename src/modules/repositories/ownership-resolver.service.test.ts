@@ -12,6 +12,10 @@ function fakeRedis() {
       store.set(key, value);
       return "OK";
     }),
+    del: vi.fn(async (key: string) => {
+      const existed = store.delete(key);
+      return existed ? 1 : 0;
+    }),
   };
 }
 
@@ -46,5 +50,17 @@ describe("OwnershipResolver", () => {
     await expect(resolver.assertOwnership("user-1", "repo-1")).rejects.toMatchObject({ code: "REPO_FORBIDDEN" });
 
     expect(indexer.checkOwnership).toHaveBeenCalledTimes(1);
+  });
+
+  it("invalidate clears the cached ownership so the next check re-asks indexer", async () => {
+    const redis = fakeRedis();
+    const indexer = fakeIndexer(true);
+    const resolver = new OwnershipResolver(indexer as never, redis as never, config);
+
+    await resolver.assertOwnership("user-1", "repo-1");
+    await resolver.invalidate("user-1", "repo-1");
+    await resolver.assertOwnership("user-1", "repo-1");
+
+    expect(indexer.checkOwnership).toHaveBeenCalledTimes(2);
   });
 });
